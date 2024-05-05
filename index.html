@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>youtube multi player</title>
+    </head>
+    <style>
+        body {margin: 0; background-color: #000; clear: both;}
+        body > div#nav { background-color: gray; position: relative; clear: both; min-height: 30px}
+        body > div#nav span { color: #f00; }
+        body > div#players { position: relative; clear: both; float: none;}
+        div.ppr { float: left; width:"360px"; height: "220px"; overflow:hidden; }
+        table, th, tr,td {padding: 0; margin: 0; background-color: gray; width:auto} 
+        form { float: none }
+        .title { position: fixed; left:0; right:0; top: 0; bottom:0;}
+        .title .center { position: absolute; top: 50%; width: 100%; text-align: center; color:#333;}
+        script {display: none;}
+    </style>
+<body>
+    <div class="title">
+        <h1 class="center">QA12 multiple youtube player<br />contact:tg:summer179</h1>
+    </div>
+    <div id="nav">
+        <table>
+            <tr>
+                <td>
+                    <form onsubmit="event.preventDefault();return false;">
+                        <span>URL:</span>
+                        <textarea id="txtUrl" type="text" name="url" placeholder="Please youtube url here" rows="1" cols="30"></textarea>
+                        <button onclick="eAddVideo(event)">Add</button>
+                        <button onclick="eClearInput(event)">Clear</button>
+                    </form>
+                </td>
+                <td>
+                    <form onsubmit="event.preventDefault();return false;">
+                        <span>Volume:</span>
+                        <input type="number" name="volume" id="txtVolume" style="width:50px" min="0" max="100" value="20"/>
+                        <button onclick="eSetVolume(event);">Set</button>
+                        <button onclick="eSetMute(event);">Mute</button>
+                        <button onclick="eSetUnMute(event);">UnMute</button>
+                    </form>
+                </td>
+                <td>
+                    <form onsubmit="event.preventDefault();return false;">
+                        <span>Width(px)</span>
+                        <input type="number" name="playerwidth" id="txtPlayerWidth" style="width:50px" min="240" value="360" placeholder="width" />
+                        <button onclick="eSetWidth(event);">Set</button>
+                    </form>
+                </td>
+                <td>
+                    <form onsubmit="event.preventDefault();return false;">
+                        <span>Remove:</span>
+                        <input type="number" name="playerIdx" id="txtPlayerIdx" style="width:50px" min="1" value="1" placeholder="Start from 1" />
+                        <button onclick="eRemovePlayer(event);">Set</button>
+                    </form>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <div id="players"></div>
+</body>
+<script src="http://www.youtube.com/player_api"></script>
+<script>
+// defaults
+var defaults = {
+    ratio: 3/3, // usually either 4/3 or 16/9 -- tweak as needed
+    // videoId: '', // toy robot in space is a good default, no?
+    mute: true,
+    // repeat: true,
+    width: 360,
+    height: 225,
+    // wrapperZIndex: 99,
+    playButtonClass: 'tubular-play',
+    pauseButtonClass: 'tubular-pause',
+    muteButtonClass: 'tubular-mute',
+    volumeUpClass: 'tubular-volume-up',
+    volumeDownClass: 'tubular-volume-down',
+    // increaseVolumeBy: 10,
+    // start: 0,
+    // Volume:0
+};
+var pWidth = 360, pHeight=parseInt(pWidth/16)*10;
+function eAddVideo(e) {
+    var urls=document.querySelector("#txtUrl").value;
+    urls2=urls.split("\n");
+    for(var i=0; i<urls2.length;i++) {
+        addVideo(urls2[i].trim());
+    }
+}
+function eSetVolume(e) {
+    var volume = document.querySelector("#txtVolume").value;
+    setVolume(volume);
+}
+isMute = true;
+function eSetMute(e) {
+    setMute(true);
+    isMute = true;
+}
+function eSetUnMute(e) {
+    setUnMute(false);
+    isMute = false;
+}
+function eClearInput(e) {
+    document.querySelector("#txtUrl").value =""
+}
+function eSetWidth(e) {
+    var width = document.querySelector("input#txtPlayerWidth").value;
+    setWidth(width);
+}
+function eRemovePlayer(e) {
+    var idx = document.querySelector("input#txtPlayerIdx").value;
+    idx=idx-1;
+    removeVideo(idx);
+}
+var isIframeApiReady=false;
+function onYouTubeIframeAPIReady() {
+    isIframeApiReady=true;
+}
+var pid=1;
+var plist=[];
+function addVideo(url) {
+    if(!isIframeApiReady) {
+        alert('API is not load yet');
+        return false;
+    }
+    var vid=youtube_parser(url);
+    if(vid == false) {
+        return
+    }
+    var d = document.createElement("div");
+    d.className="ppr";
+    d.style.width=pWidth+"px";
+    d.style.height=pHeight+"px";
+    var player_id="player"+pid;pid++;
+    d.innerHTML = 
+    `
+    <iframe id="${player_id}" src="https://www.youtube.com/embed/${vid}?enablejsapi=1&allowsInlineMediaPlayback=true&playsinline=1&autoplay=1&mute=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen anonymous> </iframe>
+    `.trim();
+    
+    document.body.querySelector("#players").append(d);
+    var player = new YT.Player(player_id, {});
+    plist.push([d,player,player_id]);
+    player.setSize(pWidth,pHeight);
+    player.setVolume(setVolume.val);
+}
+function removeVideo(idx) {
+    if(idx > plist.length) return;
+    var item = plist[idx];
+    item[1].stopVideo();
+    item[0].remove();
+    plist.splice(idx,1);
+}
+function moveVideo(idx,to) {
+    var videoFrom = plist[idx];
+    var videoTo   = plist[to];
+    var domPlayers=document.body.querySelector("#players");
+    domPlayers.insertBefore(videoFrom[0],videoTo[0]);
+
+    plist[idx]=undefined;
+    plist.splice(to,0,videoFrom);
+    var len=plist.length, lenb=len-1;
+    for(var i=0; i < lenb;i++) {
+        if(plist[i]==undefined) {
+            plist[i]=plist[i+1];
+            plist[i+1]=undefined;
+        }
+    }
+    if(plist[len-1]==undefined) plist.pop();
+    //
+    
+}
+function ytReadyOnload(e) {
+    var target = e.target;
+    var player = new YT.Player(target.id, {});
+    plist.push(player);
+}
+//https://stackoverflow.com/questions/3452546/how-do-i-get-the-youtube-video-id-from-a-url
+function youtube_parser(url){
+    var regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(live\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    var match = url.match(regExp);
+    return (match&&match[8].length==11)? match[8] : false;
+}
+
+function setMute(isMute) {
+    plist.forEach(function(item) {
+        item[1].mute();
+    });
+}
+function setUnMute(isMute) {
+    plist.forEach(function(item) {
+        item[1].unMute();
+    });
+}
+function setVolume(val) {
+    plist.forEach(function(item) {
+       item[1].setVolume(val);
+    });
+}
+setVolume.val=20;
+function setWidth(val) {
+    var w = pWidth = val;
+    var h = pHeight = parseInt(w/16) * 10;
+    plist.forEach(function(item) {
+       item[0].style.width = w+"px";
+       item[0].style.height = h+"px";
+       item[1].setSize(w, h);
+    });
+}
+function showMenu() {
+    document.getElementById("nav").style.display="block";
+}
+function hideMenu() {
+    document.getElementById("nav").style.display="none";
+}
+</script>
+<script>
+/**
+ * Script example for adding youtube live chat
+ * Ref: Multiple-Embedded-Youtube-Player 
+ * https://github.com/kkchengaf/Multiple-Embedded-Youtube-Player/
+ * https://github.com/kkchengaf/Multiple-Embedded-Youtube-Player/blob/john/script/html-object.js
+ */
+/* 
+// chat_html = document.createElement("iframe");
+// chat_html.referrerPolicy = "origin";
+// dark_theme_tag = "&dark_theme=" + (darked?1:0)
+// chat_html.src = "https://www.youtube.com/live_chat?v=" + vid + "&embed_domain=kkchengaf.github.io" + dark_theme_tag
+// chat_html.bksrc = "https://www.youtube.com/live_chat?v=" + vid + "&embed_domain=kkchengaf.github.io" + dark_theme_tag
+// chat_html.frameBorder = "0";
+// chat_html.setAttribute("class", "livechatiframe")
+// chat_html.style.display = toggleDisplayString(!chatShowed)
+// chat_html.id = "chat" + uid; 
+*/
+/**
+ * Script example for sync live stream to current
+ * Ref: Multiple-Embedded-Youtube-Player 
+ * https://github.com/kkchengaf/Multiple-Embedded-Youtube-Player/
+ * https://github.com/kkchengaf/Multiple-Embedded-Youtube-Player/blob/john/script/event-handler.js
+ */
+/*
+// function syncReplay() {
+//     vid_src = lastModifiedPlayerVid
+//     base_time = stmap[vid_src] + getPlayerVid(vid_src).getCurrentTime()*1000
+//     containers.forEach(tup => {
+//         time_t = base_time - stmap[tup.vid]
+//         tup.ply.seekTo(time_t/1000)
+//     });
+// }
+*/
+</script>
+</html>
+
